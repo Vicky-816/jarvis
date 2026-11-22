@@ -3,12 +3,14 @@ import os
 import queue
 import sqlite3
 import threading
+import time
 import tkinter as tk
 from pathlib import Path
 from tkinter import messagebox, simpledialog, ttk
 from tkinter.scrolledtext import ScrolledText
 
 from jarvis import Assistant, model_reply, open_workspace
+from voice import start_dictation
 
 
 class Desktop:
@@ -33,6 +35,11 @@ class Desktop:
         self.entry.bind("<Return>", lambda _: self.send())
         self.send_button = ttk.Button(bar, text="Send", command=self.send)
         self.send_button.pack(side="right", padx=(8, 0))
+        self.voice_button = ttk.Button(bar, text="Speak", command=self.toggle_voice)
+        self.voice_button.pack(side="right", padx=(8, 0))
+        self.dictation = None
+        self.voice_timer = None
+        root.protocol("WM_DELETE_WINDOW", self.close)
         self.records = {}
         for label in ("Memory", "Workspaces"):
             page = ttk.Frame(self.tabs, padding=12)
@@ -135,6 +142,7 @@ class Desktop:
                 results.put((False, exc))
 
         self.send_button.state(["disabled"])
+        self.voice_button.state(["disabled"])
         self.entry.state(["disabled"])
         for idx in (1, 2):
             self.tabs.tab(idx, state="disabled")
@@ -147,6 +155,7 @@ class Desktop:
                 return
             ok, result = results.get()
             self.send_button.state(["!disabled"])
+            self.voice_button.state(["!disabled"])
             self.entry.state(["!disabled"])
             for idx in (1, 2):
                 self.tabs.tab(idx, state="normal")
@@ -160,6 +169,62 @@ class Desktop:
                 messagebox.showerror("Jarvis", str(result))
             self.entry.focus_set()
         self.root.after(100, poll)
+
+    def close(self):
+        if self.dictation:
+            self.finish_voice("Dictation cancelled.")
+        self.root.destroy()
+
+    def toggle_voice(self):
+        if self.dictation:
+            self.finish_voice("Dictation cancelled.")
+            return
+        session = start_dictation()
+        self.dictation = session
+        deadline = time.monotonic() + 35
+        self.voice_button.configure(text="Cancel mic")
+        self.send_button.state(["disabled"])
+        for idx in (1, 2):
+            self.tabs.tab(idx, state="disabled")
+        self.status.set("Starting microphone… Wait for Listening.")
+
+        def poll():
+            self.voice_timer = None
+            if session is not self.dictation:
+                return
+            try:
+                event, value = session.events.get_nowait()
+            except queue.Empty:
+                if time.monotonic() >= deadline:
+                    self.finish_voice("Dictation timed out. Try a shorter phrase.")
+                    return
+            else:
+                if event == "draft":
+                    separator = " " if self.entry.get() and not self.entry.get()[-1].isspace() else ""
+                    self.entry.insert("end", separator + value)
+                    self.entry.xview_moveto(1)
+                    self.finish_voice("Review your words, then select Send.")
+                    return
+                if event == "error":
+                    self.finish_voice("Dictation stopped.")
+                    messagebox.showerror("Voice input", value)
+                    return
+                self.status.set(f"Listening ({value})… Speak one phrase, then pause.")
+            self.voice_timer = self.root.after(80, poll)
+        self.voice_timer = self.root.after(80, poll)
+
+    def finish_voice(self, status):
+        if self.voice_timer is not None:
+            self.root.after_cancel(self.voice_timer)
+            self.voice_timer = None
+        self.dictation.cancel()
+        self.dictation = None
+        self.voice_button.configure(text="Speak")
+        self.send_button.state(["!disabled"])
+        for idx in (1, 2):
+            self.tabs.tab(idx, state="normal")
+        self.status.set(status)
+        self.entry.focus_set()
 
     def send(self):
         request = self.entry.get().strip()

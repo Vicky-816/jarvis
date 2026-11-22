@@ -1,6 +1,6 @@
 # Jarvis
 
-A personal assistant for Windows that talks to a local language model. This first development version includes text conversation, a notebook you control, and a way to open registered WSL projects in VS Code. Messages go to Ollama on your own computer. No API key or paid account is required.
+A personal assistant for Windows that talks to a local language model. This first development version includes typed and dictated conversation, a notebook you control, and a way to open registered WSL projects in VS Code. Messages go to Ollama on your own computer. No API key or paid account is required.
 
 ## Start on your Windows laptop
 
@@ -12,6 +12,14 @@ A personal assistant for Windows that talks to a local language model. This firs
 
 The model may take a while to load on an 8 GB laptop. If Jarvis reports that Ollama did not respond, open Ollama and try again. The Memory and Workspaces tabs also work while Ollama is offline.
 
+## Speak a message on Windows
+
+Open **Conversation**, click **Speak**, and wait for **Listening**. Say one short sentence into your default microphone, then pause. Jarvis appends the recognized words to the message box. Edit them and click **Send** when ready. **Cancel mic** discards that attempt and keeps any text you already typed.
+
+Dictation uses the installed Windows desktop speech recognizer, with the current Windows culture preferred when available. The Listening indicator shows the language in use. Audio stays on the laptop. The app stores no audio files, and you can test dictation before starting Ollama. Sending the resulting message uses the same local chat and history as typing.
+
+If recognition is unavailable, open **Settings → Time & language → Language & region**, then the language's options, and install **Basic speech recognition** or **Speech** for a supported language. If the microphone is unavailable, check **Settings → System → Sound → Input** and **Privacy & security → Microphone → Let desktop apps access your microphone**.
+
 ## Open a project
 
 Install VS Code for Windows in its standard location, the Microsoft WSL extension, and a WSL distribution. Open **Workspaces → Register folder** and enter a name, your distribution, and an existing absolute Linux folder path. In PowerShell, `wsl -l -q` lists distribution names. In your project's WSL terminal, `pwd` prints the folder path.
@@ -22,7 +30,7 @@ Tell Jarvis which project you want to work on. When it proposes opening a projec
 
 Chat, saved notes, and workspace registrations are stored in a SQLite file under `%LOCALAPPDATA%\Jarvis`. This file uses the privacy protections of your Windows account and disk. Jarvis gives the model recent conversation turns, recent saved notes and registered workspace names. The model does not read your project files. You can delete notes and clear the conversation independently. A saved note keeps its source until you edit or delete the note.
 
-This release runs on the laptop. Voice, remote access from Android and iPad, and background notifications are future milestones. Local model performance and WSL launching require validation on your Windows setup.
+This release runs on the laptop. Remote access from Android and iPad, and background notifications are future milestones. Local model performance and WSL launching require validation on your Windows setup.
 
 ## Develop
 
